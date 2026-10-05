@@ -25,7 +25,7 @@ on status and public comments flow both ways. The platform stays the system of r
   it; every change is a guarded write.
 - **Staff only**: every route but the webhook refuses a `REQUESTER` with 403 `ERR-ETK-00403`.
 - **Not here yet:** a retry queue or polling for a provider that is down or missed an event, business-hours calendars, attachments, mapping
-  of priorities and assignees, DNS rebinding defence, and the webhook as a public route behind the gateway when security is on.
+  of priorities and assignees, and a DNS rebinding defence.
 
 ## BIAN Behavior Qualifier Contract
 

@@ -1,0 +1,2724 @@
+{
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "exec": [
+          "// Automatically generate standard W3C traceparent (ADR-010) and X-Trace-Id",
+          "function generateHex(len) {",
+          "    let result = '';",
+          "    const chars = '0123456789abcdef';",
+          "    for (let i = 0; i < len; i++) {",
+          "        result += chars.charAt(Math.floor(Math.random() * chars.length));",
+          "    }",
+          "    return result;",
+          "}",
+          "const traceId = generateHex(32);",
+          "const spanId = generateHex(16);",
+          "const traceparent = `00-${traceId}-${spanId}-01`;",
+          "pm.request.headers.upsert({ key: 'traceparent', value: traceparent });",
+          "pm.request.headers.upsert({ key: 'X-Trace-Id', value: traceId });",
+          "pm.environment.set('currentTraceId', traceId);"
+        ],
+        "type": "text/javascript"
+      }
+    }
+  ],
+  "info": {
+    "_exporter_id": "39879181",
+    "_postman_id": "a7c9e1f3-6b8d-4c0e-9d2f-4a5b6c7d8e9f",
+    "description": "Enterprise-grade E2E Postman Suite for the IT External Ticketing Service Domain (BIAN-aligned, ADR-001/005/013/019/030/031/032/033). Registers a Jira and a ServiceNow connection that NAME the environment variables holding their credentials (the answers say whether each is set and never carry a secret), retrieves, lists, updates (the maps are replaced), checks (the credentials variable is deliberately not set, so the provider is never called), disables and enables, and reads the audit ledger in order. A disabled connection links nothing. A second folder covers linking at the edges (an item that does not exist, a connection that does not exist, bad payloads), a third proves the service is staff only (a REQUESTER gets 403 ERR-ETK-00403), and a fourth the negative guarantees: validation, the address policy (plain http, cloud-metadata and private addresses, credentials in the URL are refused), secret names that are not variable names, duplicate names (409), tenant isolation, the webhook refusing a missing or wrong token (401) and an unknown connection (404), and the absence of DELETE, with RFC 7807 error_code assertions. The two-way sync with a real provider double is proved by the platform smoke (external-ticketing-smoke). It files everything under its own generated tenant id (etkOrganisationId), so it needs no organisationId from the Party Reference Data Directory.",
+    "name": "IT External Ticketing Service - Connector Suite",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Health status is UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Health Check (Aggregated)",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ],
+              "raw": "{{base_url}}/health"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Liveness status is UP or UNKNOWN (no probe contributors registered)', () => pm.expect(['UP', 'UNKNOWN']).to.include(pm.response.json().status));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Liveness Probe",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health",
+                "liveness"
+              ],
+              "raw": "{{base_url}}/health/liveness"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Readiness status is UP', () => pm.expect(pm.response.json().status).to.eql('UP'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Readiness Probe",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health",
+                "readiness"
+              ],
+              "raw": "{{base_url}}/health/readiness"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Contains JVM metrics', () => pm.expect(pm.response.text()).to.include('jvm_memory'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Prometheus Metrics",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "prometheus"
+              ],
+              "raw": "{{base_url}}/prometheus"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Returns Swagger UI HTML', () => pm.expect(pm.response.text()).to.include('swagger-ui'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "Swagger UI",
+          "request": {
+            "header": [],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "swagger-ui",
+                "index.html"
+              ],
+              "raw": "{{base_url}}/swagger-ui/index.html"
+            }
+          }
+        }
+      ],
+      "name": "00. Infrastructure & Telemetry"
+    },
+    {
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.environment.set('etkOrganisationId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.environment.set('etkUserId', pm.variables.replaceIn('{{$guid}}'));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('ACTIVE, project, the names of the variables, and only the names', () => {",
+                  "    pm.expect(json.status).to.eql('ACTIVE');",
+                  "    pm.expect(json.projectKey).to.eql('ITSM');",
+                  "    pm.expect(json.secretRef).to.eql('THINKLAB_POSTMAN_UNSET_AUTH');",
+                  "    pm.expect(json.secretConfigured).to.eql(false);",
+                  "    pm.expect(json.webhookSecretConfigured).to.be.a('boolean');",
+                  "});",
+                  "pm.test('Default maps filled in for Jira', () => {",
+                  "    pm.expect(json.outboundStatus.RESOLVED).to.eql('Done');",
+                  "    pm.expect(json.inboundActions.Done).to.eql('RESOLVE');",
+                  "});",
+                  "pm.environment.set('connectionId', json.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "01. Initiate Connection (Jira, ACTIVE, names its variables, holds no secret)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jira prod\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"THINKLAB_POSTMAN_UNSET_AUTH\",\n  \"webhookSecretRef\": \"THINKLAB_MOCK_JIRA_HOOK\",\n  \"integrationActor\": \"svc-thinklab\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));",
+                  "const json = pm.response.json();",
+                  "pm.test('No project key, own inbound map, default outbound state codes', () => {",
+                  "    pm.expect(json.projectKey).to.be.undefined;",
+                  "    pm.expect(json.inboundActions).to.eql({ '6': 'RESOLVE', '9': 'CLOSE' });",
+                  "    pm.expect(json.outboundStatus.RESOLVED).to.eql('6');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "02. Initiate Connection (ServiceNow: no project key, state codes by default)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ServiceNow prod\",\n  \"provider\": \"SERVICENOW\",\n  \"baseUrl\": \"https://acme.service-now.com\",\n  \"secretRef\": \"THINKLAB_POSTMAN_UNSET_SNOW\",\n  \"webhookSecretRef\": \"THINKLAB_POSTMAN_UNSET_SNOW_HOOK\",\n  \"integrationActor\": \"svc.thinklab\",\n  \"inboundActions\": {\"6\": \"RESOLVE\", \"9\": \"CLOSE\"}\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Same connection', () => pm.expect(pm.response.json().id).to.eql(pm.environment.get('connectionId')));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "03. Retrieve Connection By ID",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Two connections', () => pm.expect(pm.response.json().length).to.eql(2));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "04. List Connections (both of this tenant)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "05. Update: a new name and a custom outbound map (204)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jira production\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"THINKLAB_POSTMAN_UNSET_AUTH\",\n  \"webhookSecretRef\": \"THINKLAB_MOCK_JIRA_HOOK\",\n  \"integrationActor\": \"svc-thinklab\",\n  \"projectKey\": \"ITSM\",\n  \"outboundStatus\": {\"NEW\": \"Backlog\"}\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "update"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/update"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Renamed, custom outbound map, default inbound map back', () => {",
+                  "    pm.expect(json.name).to.eql('Jira production');",
+                  "    pm.expect(json.outboundStatus).to.eql({ NEW: 'Backlog' });",
+                  "    pm.expect(json.inboundActions.Done).to.eql('RESOLVE');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "06. Retrieve (renamed, the custom map replaced the defaults)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Not configured, not reachable, and it says which variable', () => {",
+                  "    pm.expect(json.secretConfigured).to.eql(false);",
+                  "    pm.expect(json.reachable).to.eql(false);",
+                  "    pm.expect(json.problem).to.include('THINKLAB_POSTMAN_UNSET_AUTH');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "07. Check: the variable is not set, so the provider is not called",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "check",
+                "execute"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/check/execute"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "08. Control: disable (ACTIVE -> DISABLED)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "control",
+                "disable"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/control/disable"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00409');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "09. A disabled connection links nothing (409)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"connectionId\": \"{{connectionId}}\",\n  \"subjectType\": \"INCIDENT\",\n  \"subjectId\": \"00000000-0000-0000-0000-0000000000aa\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "10. Control: enable (DISABLED -> ACTIVE)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "control",
+                "enable"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/control/enable"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "const json = pm.response.json();",
+                  "pm.test('Ledger reads in order', () => pm.expect(json.map(e => e.action)).to.eql(['INITIATED', 'UPDATED', 'DISABLED', 'ENABLED']));",
+                  "pm.test('No secret name or value beyond the names', () => pm.expect(JSON.stringify(json)).to.not.include('Basic '));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "11. Retrieve Audit Ledger (every step, in order)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "audit-log",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/audit-log/retrieve"
+            }
+          }
+        }
+      ],
+      "name": "01. Connection Lifecycle (BIAN Behavior Qualifiers)"
+    },
+    {
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "01. Link an incident that does not exist (404)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"connectionId\": \"{{connectionId}}\",\n  \"subjectType\": \"INCIDENT\",\n  \"subjectId\": \"00000000-0000-0000-0000-0000000000bb\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "02. Link to a connection that does not exist (404)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"connectionId\": \"00000000-0000-0000-0000-0000000000cc\",\n  \"subjectType\": \"INCIDENT\",\n  \"subjectId\": \"00000000-0000-0000-0000-0000000000bb\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "03. Link - Missing Subject Type (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"connectionId\": \"{{connectionId}}\",\n  \"subjectId\": \"00000000-0000-0000-0000-0000000000bb\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "04. Link - Unknown Subject Type (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"connectionId\": \"{{connectionId}}\",\n  \"subjectType\": \"CHANGE\",\n  \"subjectId\": \"00000000-0000-0000-0000-0000000000bb\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('None', () => pm.expect(pm.response.json()).to.eql([]));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "05. List links (none yet, filtered by item)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "retrieve"
+              ],
+              "query": [
+                {
+                  "key": "subjectId",
+                  "value": "00000000-0000-0000-0000-0000000000bb"
+                },
+                {
+                  "key": "subjectType",
+                  "value": "INCIDENT"
+                }
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/retrieve?subjectId=00000000-0000-0000-0000-0000000000bb&subjectType=INCIDENT"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "06. Retrieve - Non-existent link (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "00000000-0000-0000-0000-000000000000",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/00000000-0000-0000-0000-000000000000/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "07. Sync - Non-existent link (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "00000000-0000-0000-0000-000000000000",
+                "sync",
+                "execute"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/00000000-0000-0000-0000-000000000000/sync/execute"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "08. Detach - Non-existent link (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "00000000-0000-0000-0000-000000000000",
+                "control",
+                "detach"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/00000000-0000-0000-0000-000000000000/control/detach"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "09. Audit log - Non-existent link (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "00000000-0000-0000-0000-000000000000",
+                "audit-log",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/00000000-0000-0000-0000-000000000000/audit-log/retrieve"
+            }
+          }
+        }
+      ],
+      "name": "02. Linking at the Edges"
+    },
+    {
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "01. A REQUESTER cannot register a connection (403)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Requester attempt\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"THINKLAB_POSTMAN_UNSET_AUTH\",\n  \"webhookSecretRef\": \"THINKLAB_MOCK_JIRA_HOOK\",\n  \"integrationActor\": \"svc-thinklab\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{etkUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "02. A REQUESTER cannot read a connection (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{etkUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "03. A REQUESTER cannot list connections (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{etkUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "04. A REQUESTER cannot switch a connection (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{etkUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "control",
+                "disable"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/control/disable"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "05. A REQUESTER cannot check a connection (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{etkUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "check",
+                "execute"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/check/execute"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "06. A REQUESTER cannot link an item (403)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"connectionId\": \"{{connectionId}}\",\n  \"subjectType\": \"INCIDENT\",\n  \"subjectId\": \"00000000-0000-0000-0000-0000000000bb\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{etkUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "07. A REQUESTER cannot list links (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{etkUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "08. A REQUESTER cannot sync a link (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{etkUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "00000000-0000-0000-0000-000000000000",
+                "sync",
+                "execute"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/00000000-0000-0000-0000-000000000000/sync/execute"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 403', () => pm.response.to.have.status(403));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00403', () => {",
+                  "    pm.expect(json.status).to.eql(403);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00403');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "09. A REQUESTER cannot detach a link (403)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{etkUserId}}"
+              },
+              {
+                "key": "X-Role",
+                "value": "REQUESTER"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "00000000-0000-0000-0000-000000000000",
+                "control",
+                "detach"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/00000000-0000-0000-0000-000000000000/control/detach"
+            }
+          }
+        }
+      ],
+      "name": "03. Staff Only (REQUESTER refused)"
+    },
+    {
+      "item": [
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "01. Initiate - Blank Name (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"THINKLAB_POSTMAN_UNSET_AUTH\",\n  \"webhookSecretRef\": \"THINKLAB_MOCK_JIRA_HOOK\",\n  \"integrationActor\": \"svc-thinklab\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "02. Initiate - Missing Provider (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"n\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"C_D\",\n  \"integrationActor\": \"svc\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "03. Initiate - Plain http address (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"http one\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"http://jira.example.com\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"C_D\",\n  \"integrationActor\": \"svc\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "04. Initiate - Cloud metadata address (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"metadata\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://169.254.169.254\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"C_D\",\n  \"integrationActor\": \"svc\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "05. Initiate - Private address (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"private\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://10.0.0.5\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"C_D\",\n  \"integrationActor\": \"svc\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "06. Initiate - An address with credentials in it (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"userinfo\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://bot:pw@jira.example.com\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"C_D\",\n  \"integrationActor\": \"svc\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "07. Initiate - A secret reference that is not a variable name (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"pasted\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"Basic abc123\",\n  \"webhookSecretRef\": \"C_D\",\n  \"integrationActor\": \"svc\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "08. Initiate - The two variables must differ (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"same\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"A_B\",\n  \"integrationActor\": \"svc\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "09. Initiate - A Jira connection needs its project key (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"noproject\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"C_D\",\n  \"integrationActor\": \"svc\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "10. Initiate - Missing integration actor (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"noactor\",\n  \"provider\": \"SERVICENOW\",\n  \"baseUrl\": \"https://acme.service-now.com\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"C_D\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "11. Initiate - Missing X-Tenant-Id (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"notenant\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"THINKLAB_POSTMAN_UNSET_AUTH\",\n  \"webhookSecretRef\": \"THINKLAB_MOCK_JIRA_HOOK\",\n  \"integrationActor\": \"svc-thinklab\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00409');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "12. Initiate - The same name twice in one tenant (409)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jira production\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"THINKLAB_POSTMAN_UNSET_AUTH\",\n  \"webhookSecretRef\": \"THINKLAB_MOCK_JIRA_HOOK\",\n  \"integrationActor\": \"svc-thinklab\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 201 Created', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "13. Initiate - The same name in another tenant is fine (201)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jira production\",\n  \"provider\": \"JIRA\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"THINKLAB_POSTMAN_UNSET_AUTH\",\n  \"webhookSecretRef\": \"THINKLAB_MOCK_JIRA_HOOK\",\n  \"integrationActor\": \"svc-thinklab\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "00000000-0000-0000-0000-000000000001"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "initiate"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/initiate"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00409');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "14. Update - Rename onto a name that is taken (409)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"ServiceNow prod\",\n  \"baseUrl\": \"https://jira.example.com\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"C_D\",\n  \"integrationActor\": \"svc\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "update"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/update"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "15. Update - An unsafe address (400)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Jira production\",\n  \"baseUrl\": \"http://jira.example.com\",\n  \"secretRef\": \"A_B\",\n  \"webhookSecretRef\": \"C_D\",\n  \"integrationActor\": \"svc\",\n  \"projectKey\": \"ITSM\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "update"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/update"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00409', () => {",
+                  "    pm.expect(json.status).to.eql(409);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00409');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "16. Enable an ACTIVE connection is an illegal transition (409)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "control",
+                "enable"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/control/enable"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "17. Retrieve - Non-existent connection (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "00000000-0000-0000-0000-000000000000",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/00000000-0000-0000-0000-000000000000/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 400 Bad Request', () => pm.response.to.have.status(400));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "18. Retrieve - Malformed UUID Path (400)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "not-a-uuid",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/not-a-uuid/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "19. Retrieve - Another tenant answers like a missing one (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "00000000-0000-0000-0000-000000000001"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "GET",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "retrieve"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/retrieve"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "20. Check - Another tenant (404)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "00000000-0000-0000-0000-000000000001"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "PUT",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}",
+                "check",
+                "execute"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}/check/execute"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00401', () => {",
+                  "    pm.expect(json.status).to.eql(401);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00401');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "21. Webhook - No token (401)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"webhookEvent\": \"jira:issue_updated\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "webhook",
+                "{{connectionId}}",
+                "receive"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/webhook/{{connectionId}}/receive"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00401', () => {",
+                  "    pm.expect(json.status).to.eql(401);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00401');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "22. Webhook - A wrong token (401)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"webhookEvent\": \"jira:issue_updated\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Webhook-Token",
+                "value": "not-the-token"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "webhook",
+                "{{connectionId}}",
+                "receive"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/webhook/{{connectionId}}/receive"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));",
+                  "const json = pm.response.json();",
+                  "pm.test('RFC 7807 error_code is ERR-ETK-00404', () => {",
+                  "    pm.expect(json.status).to.eql(404);",
+                  "    pm.expect(json.error_code).to.eql('ERR-ETK-00404');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "23. Webhook - An unknown connection (404)",
+          "request": {
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"webhookEvent\": \"jira:issue_updated\"\n}"
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Webhook-Token",
+                "value": "anything"
+              }
+            ],
+            "method": "POST",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "webhook",
+                "00000000-0000-0000-0000-000000000000",
+                "receive"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/webhook/00000000-0000-0000-0000-000000000000/receive"
+            }
+          }
+        },
+        {
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Not allowed', () => pm.expect([404, 405]).to.include(pm.response.code));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "name": "24. Delete - There is no DELETE (404 or 405)",
+          "request": {
+            "header": [
+              {
+                "key": "X-Tenant-Id",
+                "value": "{{etkOrganisationId}}"
+              },
+              {
+                "key": "X-Executor",
+                "value": "{{executor}}"
+              }
+            ],
+            "method": "DELETE",
+            "url": {
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "it-external-ticketing",
+                "v1",
+                "connection",
+                "{{connectionId}}"
+              ],
+              "raw": "{{base_url}}/it-external-ticketing/v1/connection/{{connectionId}}"
+            }
+          }
+        }
+      ],
+      "name": "04. Negative Tests & Guarantees"
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8102"
+    }
+  ]
+}

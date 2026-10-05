@@ -178,6 +178,15 @@ thinklab:
     token-url: ${THINKLAB_TOKEN_URL:`http://localhost:8082/party-authentication/v1/token/service`}
     client-id: thinklab-it-external-ticketing-service
     client-secret: ${THINKLAB_CLIENT_SECRET:}
+    # The provider cannot sign in: the webhook is identified by the connection in its path and proved by its own token (ADR-032).
+    public-paths:
+      - /health
+      - /prometheus
+      - /metrics
+      - /swagger
+      - /swagger-ui
+      - /openapi
+      - /it-external-ticketing/v1/webhook
 
   # ----------------------------------------------------------------------------------------------
   # Event backbone (kit ADR-003). This service neither publishes nor consumes events (ADR-031: the sync is
