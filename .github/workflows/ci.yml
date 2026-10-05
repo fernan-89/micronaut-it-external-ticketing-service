@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+# packages: read resolves micronaut-thinklab-service-kit from GitHub Packages with the workflow token.
+permissions:
+  contents: read
+  packages: read
+
+# A newer push to the same PR supersedes the run in progress; pushes to master always run to completion.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@v6
+      # Unit tests + 100% coverage gate + integration tests (Testcontainers). GitHub-hosted runners
+      # provide the Docker daemon the integration suite needs.
+      - name: Build and test
+        env:
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew clean check --console=plain
+      # The Dockerfile packages the installDist output, so building the image here keeps it working.
+      - name: Build the container image
+        run: ./gradlew installDist --console=plain && docker build -t ${{ github.event.repository.name }}:ci .
+      - name: Upload test and coverage reports
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: reports
+          path: |
+            build/reports/tests/
+            build/reports/jacoco/test/
