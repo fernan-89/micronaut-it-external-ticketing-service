@@ -19,6 +19,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -111,6 +112,22 @@ class GlobalExceptionHandlerTest {
                 HttpStatus.BAD_REQUEST, "ERR-VALIDATION-00400");
 
         assertTrue(body.get("detail").toString().contains("Invalid UUID string: x"));
+    }
+
+    @Test
+    @DisplayName("a value outside a fixed list is a 400 that never repeats the value")
+    void unknownEnumValueIsNotEchoed() {
+        Map<String, Object> body = assertProblem(exceptionHandler.handle(request, new IllegalArgumentException("No enum constant com.thinklab.X.password=hunter2")),
+                HttpStatus.BAD_REQUEST, "ERR-VALIDATION-00400");
+
+        assertTrue(body.get("detail").toString().contains("outside the allowed list"));
+        assertFalse(body.get("detail").toString().contains("hunter2"));
+    }
+
+    @Test
+    @DisplayName("an illegal argument without a message is still a 400")
+    void illegalArgumentWithoutMessage() {
+        assertProblem(exceptionHandler.handle(request, new IllegalArgumentException()), HttpStatus.BAD_REQUEST, "ERR-VALIDATION-00400");
     }
 
     @Test
