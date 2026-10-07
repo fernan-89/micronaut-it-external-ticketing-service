@@ -34,6 +34,7 @@ import java.util.UUID;
 @Requires(classes = {ExceptionHandler.class})
 public class GlobalExceptionHandler implements ExceptionHandler<Throwable, HttpResponse<Map<String, Object>>> {
 
+    private static final String UNKNOWN_ENUM_PREFIX = "No enum constant ";
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     private static final String PROBLEM_TYPE_BASE_URI = "https://api.thinklab.com/errors/";
@@ -71,9 +72,9 @@ public class GlobalExceptionHandler implements ExceptionHandler<Throwable, HttpR
             }
 
             if (exception instanceof IllegalArgumentException illegalArgumentEx) {
-                log.warn("[ACTION: GLOBAL_EXCEPTION_HANDLER] [PATH: {}] - Malformed input intercepted: {}",
-                        path, illegalArgumentEx.getMessage());
-                return handleValidationException(illegalArgumentEx.getMessage(), path);
+                String message = describe(illegalArgumentEx);
+                log.warn("[ACTION: GLOBAL_EXCEPTION_HANDLER] [PATH: {}] - Malformed input intercepted: {}", path, message);
+                return handleValidationException(message, path);
             }
 
             log.error("[ACTION: GLOBAL_EXCEPTION_HANDLER] [PATH: {}] - CRITICAL: Unhandled technical failure encountered in pipeline: {}",
@@ -82,6 +83,15 @@ public class GlobalExceptionHandler implements ExceptionHandler<Throwable, HttpR
         } finally {
             MDC.remove(MDC_TRACE_KEY);
         }
+    }
+
+    /**
+     * A value that is not in a fixed list (an enum) is reported by the JDK with the value itself in the message. What a caller sent is never
+     * repeated, neither in the answer nor in the log: it could hold a path or a credential.
+     */
+    private static String describe(IllegalArgumentException exception) {
+        String message = exception.getMessage();
+        return message != null && message.startsWith(UNKNOWN_ENUM_PREFIX) ? "A value outside the allowed list was given." : message;
     }
 
     private HttpResponse<Map<String, Object>> handleBusinessException(BusinessException ex, String path) {
